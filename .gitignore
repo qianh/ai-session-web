@@ -1,0 +1,9 @@
+node_modules/
+.output/
+.wxt/
+coverage/
+.keys/
+*.zip
+.env
+.env.*
+!.env.example

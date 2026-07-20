@@ -1,0 +1,51 @@
+{
+  "name": "brain-capture",
+  "version": "0.1.5",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "packageManager": "pnpm@10.26.0",
+  "scripts": {
+    "dev": "wxt",
+    "build": "wxt build && node scripts/audit-build.mjs",
+    "build:release": "pnpm check:release && wxt build && node scripts/audit-build.mjs --release",
+    "zip": "wxt zip",
+    "zip:release": "pnpm check:release && wxt zip && node scripts/audit-build.mjs --release",
+    "check:release": "node scripts/check-release.mjs",
+    "verify": "pnpm test && pnpm typecheck && pnpm lint && pnpm format:check && pnpm build",
+    "postinstall": "wxt prepare",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "format:check": "prettier --check ."
+  },
+  "dependencies": {
+    "lucide-react": "^1.25.0",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@wxt-dev/module-react": "^1.2.2",
+    "eslint": "^10.7.0",
+    "jsdom": "^29.1.1",
+    "prettier": "^3.9.5",
+    "typescript": "~5.9.3",
+    "typescript-eslint": "^8.64.0",
+    "vitest": "^4.1.10",
+    "wxt": "^0.20.27"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  }
+}
