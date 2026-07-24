@@ -63,33 +63,40 @@ export function parseGeminiListPayload(value: unknown): ConversationPage {
 
 export function normalizeGeminiConversation(
   value: unknown,
-  context: NormalizeContext & { conversationId: string },
-): NormalizedSession {
-  if (
-    !Array.isArray(value) ||
-    !Array.isArray(value[0]) ||
-    !Array.isArray(value[0][0])
-  ) {
+  context: NormalizeContext & {
+    conversationId: string;
+    startedAt?: string;
+    updatedAt?: string;
+  },
+): NormalizedSession | undefined {
+  if (!Array.isArray(value) || !Array.isArray(value[0])) {
     throw new AdapterSchemaError(SITE, "hNvQHb detail payload has changed");
   }
   const rawTurns = value[0] as unknown[];
+  // Empty conversation (no turns yet) — skip rather than fail the whole site.
+  if (rawTurns.length === 0) return undefined;
+  // Require at least one turn-shaped row so totally foreign payloads still fail.
+  if (!rawTurns.some((row) => Array.isArray(row))) {
+    throw new AdapterSchemaError(SITE, "hNvQHb detail payload has changed");
+  }
+
   const turns: NormalizedSession["turns"] = [];
   let title: string | undefined;
   let startedAt: string | undefined;
   let updatedAt: string | undefined;
 
-  for (const [index, candidate] of rawTurns.entries()) {
-    if (!Array.isArray(candidate)) {
-      throw new AdapterSchemaError(
-        SITE,
-        `detail turn ${index} is not an array`,
-      );
-    }
+  for (const candidate of rawTurns) {
+    // Soft-skip malformed turns so one odd branch does not kill the conversation.
+    if (!Array.isArray(candidate)) continue;
     const header = Array.isArray(candidate[0]) ? candidate[0] : [];
     title ??= optionalString(header[1]);
-    const timestamp = epochPairToIso(candidate[4], startedAt);
-    startedAt ??= timestamp;
-    updatedAt = timestamp;
+    try {
+      const timestamp = epochPairToIso(candidate[4], startedAt);
+      startedAt ??= timestamp;
+      updatedAt = laterIso(updatedAt, timestamp);
+    } catch {
+      // Keep going; list watermark times can fill in below if needed.
+    }
 
     const user = Array.isArray(candidate[2]) ? candidate[2] : [];
     const userText = textFromUnknown(user[0]);
@@ -109,16 +116,41 @@ export function normalizeGeminiConversation(
       const assistantText = textFromUnknown(selected[1]);
       if (assistantText)
         turns.push({ role: "assistant", text: assistantText, media: [] });
+      // selected[8][0] is expected to be a unix timestamp; Gemini sometimes
+      // puts non-time numbers here. Only accept values that do not move
+      // updatedAt before startedAt (which would fail Zod refine).
       const responseTime = Array.isArray(selected[8])
         ? selected[8][0]
         : undefined;
-      if (typeof responseTime === "number")
-        updatedAt = toIso(responseTime, updatedAt);
+      if (typeof responseTime === "number" && Number.isFinite(responseTime)) {
+        try {
+          const candidateTime = toIso(responseTime);
+          updatedAt = laterIso(updatedAt, candidateTime);
+        } catch {
+          // Ignore unusable response timestamps.
+        }
+      }
     }
   }
-  if (!startedAt || !updatedAt || turns.length === 0) {
+
+  if (turns.length === 0) {
     throw new AdapterSchemaError(SITE, "detail payload has no visible turns");
   }
+  // Prefer turn times; fall back to list summary times if turn stamps were
+  // missing or unusable.
+  startedAt ??= context.startedAt;
+  updatedAt =
+    laterIso(updatedAt, context.updatedAt) ??
+    laterIso(updatedAt, startedAt) ??
+    startedAt;
+  if (!startedAt || !updatedAt) {
+    throw new AdapterSchemaError(
+      SITE,
+      "detail payload has no usable timestamps",
+    );
+  }
+  if (updatedAt < startedAt) updatedAt = startedAt;
+
   const session: NormalizedSession = {
     source: "gemini-web",
     conversationId: context.conversationId,
@@ -131,7 +163,23 @@ export function normalizeGeminiConversation(
   if (title) session.title = title;
   if (context.workspaceId) session.workspaceId = context.workspaceId;
   if (context.sourceUrl) session.sourceUrl = context.sourceUrl;
-  return NormalizedSessionSchema.parse(session);
+  try {
+    return NormalizedSessionSchema.parse(session);
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "session validation failed";
+    throw new AdapterSchemaError(SITE, message);
+  }
+}
+
+/** Prefer the chronologically later ISO timestamp. */
+function laterIso(
+  current: string | undefined,
+  candidate: string | undefined,
+): string | undefined {
+  if (!candidate) return current;
+  if (!current) return candidate;
+  return candidate >= current ? candidate : current;
 }
 
 function findRpcTuple(value: unknown, rpcId: string): unknown[] | undefined {

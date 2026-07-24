@@ -1,9 +1,17 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { GoogleDriveGateway } from "../../../src/drive/google-drive";
+import type {
+  DriveEntry,
+  DriveObject,
+  DrivePort,
+  DrivePutInput,
+} from "../../../src/drive/types";
 import { BrainCaptureRuntime } from "../../../src/runtime/app";
 import { createDefaultState } from "../../../src/state/store";
 
-function stubStoredState(state: ReturnType<typeof createDefaultState>): void {
+function stubStoredState(state: ReturnType<typeof createDefaultState>) {
+  const getAuthToken = vi.fn(async (): Promise<{ token?: string }> => ({}));
   vi.stubGlobal("chrome", {
     storage: {
       local: {
@@ -19,7 +27,7 @@ function stubStoredState(state: ReturnType<typeof createDefaultState>): void {
       remove: vi.fn(async () => true),
     },
     identity: {
-      getAuthToken: vi.fn(),
+      getAuthToken,
       removeCachedAuthToken: vi.fn(),
     },
     runtime: { getManifest: vi.fn(() => ({})) },
@@ -33,10 +41,12 @@ function stubStoredState(state: ReturnType<typeof createDefaultState>): void {
       unregisterContentScripts: vi.fn(),
     },
   });
+  return { getAuthToken };
 }
 
 describe("BrainCaptureRuntime badge", () => {
   afterEach(() => {
+    vi.restoreAllMocks();
     vi.unstubAllGlobals();
   });
 
@@ -253,5 +263,101 @@ describe("BrainCaptureRuntime badge", () => {
     expect(state.sites.claude.organizationId).toBe("org-new");
     expect(state.sites.claude.fullBackfillPending).toBe(true);
     expect(state.sites.claude.watermark).toBeUndefined();
+  });
+
+  it("rejects a highlight when Drive is not connected", async () => {
+    const state = createDefaultState("device-test");
+    stubStoredState(state);
+
+    await expect(
+      new BrainCaptureRuntime().uploadHighlight("selected text"),
+    ).rejects.toMatchObject({ code: "DRIVE_NOT_CONNECTED" });
+  });
+
+  it("sends a connected highlight through the Drive gateway", async () => {
+    const state = createDefaultState("device-test");
+    state.drive = {
+      status: "connected",
+      rootFolderId: "root-id",
+      connectedAt: "2026-07-23T07:00:00.000Z",
+    };
+    const { getAuthToken } = stubStoredState(state);
+    const fetch = vi.fn(
+      async () =>
+        new Response(JSON.stringify({ error: "denied" }), { status: 403 }),
+    );
+    vi.stubGlobal("fetch", fetch);
+    getAuthToken.mockResolvedValue({ token: "drive-token" });
+
+    await expect(
+      new BrainCaptureRuntime().uploadHighlight("selected text"),
+    ).rejects.toMatchObject({ status: 403 });
+    expect(fetch).toHaveBeenCalledOnce();
+  });
+
+  it("serializes concurrent highlight uploads before resolving Drive paths", async () => {
+    const state = createDefaultState("device-test");
+    state.drive = {
+      status: "connected",
+      rootFolderId: "root-id",
+      connectedAt: "2026-07-23T07:00:00.000Z",
+    };
+    stubStoredState(state);
+
+    let releaseFirstPut: (() => void) | undefined;
+    const firstPutBlocked = new Promise<void>((resolve) => {
+      releaseFirstPut = resolve;
+    });
+    const objects = new Map<string, DriveObject>();
+    let activePuts = 0;
+    let maxActivePuts = 0;
+    let putCount = 0;
+    const put = vi.fn(async (input: DrivePutInput): Promise<DriveEntry> => {
+      activePuts += 1;
+      maxActivePuts = Math.max(maxActivePuts, activePuts);
+      const id = `file-${++putCount}`;
+      const object: DriveObject = {
+        id,
+        path: input.path,
+        mimeType: input.mimeType,
+        modifiedTime: "2026-07-23T07:30:12.000Z",
+        appProperties: input.appProperties ?? {},
+        bytes: Uint8Array.from(input.bytes),
+      };
+      objects.set(id, object);
+      if (putCount === 1) await firstPutBlocked;
+      activePuts -= 1;
+      return object;
+    });
+    const drive: DrivePort = {
+      listByAppProperty: vi.fn(async () => []),
+      put,
+      read: vi.fn(async (id) => {
+        const object = objects.get(id);
+        if (!object) throw new Error("missing object");
+        return object;
+      }),
+      move: vi.fn(async (id, path) => {
+        const object = objects.get(id);
+        if (!object) throw new Error("missing object");
+        object.path = path;
+        return object;
+      }),
+      trash: vi.fn(async () => undefined),
+    };
+    vi.spyOn(GoogleDriveGateway.prototype, "forRoot").mockReturnValue(drive);
+
+    const runtime = new BrainCaptureRuntime();
+    const first = runtime.uploadHighlight("first selection");
+    await vi.waitFor(() => expect(put).toHaveBeenCalledOnce());
+    const second = runtime.uploadHighlight("second selection");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const callsBeforeRelease = put.mock.calls.length;
+    releaseFirstPut?.();
+    await Promise.all([first, second]);
+
+    expect(callsBeforeRelease).toBe(1);
+    expect(maxActivePuts).toBe(1);
+    expect(put).toHaveBeenCalledTimes(2);
   });
 });

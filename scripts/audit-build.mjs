@@ -9,7 +9,9 @@ const developmentOauthClientId =
 const expectedExtensionId = "gljnhnhnkdjofigpbfdhiacbelljijmn";
 const expectedPermissions = [
   "alarms",
+  "contextMenus",
   "identity",
+  "notifications",
   "offscreen",
   "scripting",
   "storage",

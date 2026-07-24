@@ -224,7 +224,7 @@ export class GeminiAdapter implements BrowserSiteAdapter {
 
   async getConversation(
     summary: ConversationSummary,
-  ): Promise<NormalizedSession> {
+  ): Promise<NormalizedSession | undefined> {
     const raw = await this.transport.send("gemini", {
       kind: "gemini-rpc",
       rpcId: "hNvQHb",
@@ -238,6 +238,8 @@ export class GeminiAdapter implements BrowserSiteAdapter {
       {
         device: this.device,
         conversationId: summary.conversationId,
+        startedAt: summary.startedAt,
+        updatedAt: summary.updatedAt,
         sourceUrl: `https://gemini.google.com/app/${summary.conversationId}`,
         ...(summary.workspaceId ? { workspaceId: summary.workspaceId } : {}),
       },

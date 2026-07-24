@@ -12,6 +12,8 @@ import { ChromeTokenProvider } from "../drive/chrome-auth";
 import { GoogleDriveGateway } from "../drive/google-drive";
 import { DriveRestClient } from "../drive/rest-client";
 import { SessionUploadService } from "../drive/upload-service";
+import { prepareHighlight } from "../highlights/prepare";
+import { HighlightUploadService } from "../highlights/upload-service";
 import { MediaArchiver } from "../media/archiver";
 import { OffscreenImageConverter } from "../media/offscreen-converter";
 import { DEVELOPMENT_OAUTH_CLIENT_ID } from "../platform/manifest";
@@ -59,6 +61,7 @@ export class BrainCaptureRuntime {
   readonly #tokenProvider: ChromeTokenProvider;
   readonly #gateway: GoogleDriveGateway;
   readonly #syncCoordinator = new SiteTaskCoordinator();
+  #highlightUploadTail: Promise<void> = Promise.resolve();
   readonly #observer: NetworkObserverController;
 
   constructor() {
@@ -267,6 +270,26 @@ export class BrainCaptureRuntime {
       ),
     );
     await this.updateBadge();
+  }
+
+  uploadHighlight(selectionText: string): Promise<void> {
+    const operation = this.#highlightUploadTail.then(
+      () => this.performHighlightUpload(selectionText),
+      () => this.performHighlightUpload(selectionText),
+    );
+    this.#highlightUploadTail = operation.catch(() => undefined);
+    return operation;
+  }
+
+  private async performHighlightUpload(selectionText: string): Promise<void> {
+    const state = await this.#store.get();
+    if (state.drive.status !== "connected" || !state.drive.rootFolderId) {
+      throw new RuntimeError("DRIVE_NOT_CONNECTED");
+    }
+    const result = await new HighlightUploadService({
+      drive: this.#gateway.forRoot(state.drive.rootFolderId),
+    }).upload(await prepareHighlight(selectionText));
+    if (result.status === "failed") throw new RuntimeError(result.errorCode);
   }
 
   async reconcileObservers(): Promise<void> {

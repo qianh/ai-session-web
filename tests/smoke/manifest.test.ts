@@ -7,11 +7,19 @@ import {
 } from "../../src/platform/manifest";
 
 describe("Chrome manifest contract", () => {
+  it("describes both automatic sessions and manual highlights", () => {
+    expect(manifestDefinition.description).toBe(
+      "将网页 AI 会话和手动精选文本归档到个人 BrainHub。",
+    );
+  });
+
   it("uses only the required MV3 platform permissions", () => {
     expect(manifestDefinition.manifest_version).toBe(3);
     expect(manifestDefinition.permissions).toEqual([
       "alarms",
+      "contextMenus",
       "identity",
+      "notifications",
       "offscreen",
       "scripting",
       "storage",

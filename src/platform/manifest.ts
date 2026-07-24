@@ -7,7 +7,7 @@ export function createManifest(oauthClientId: string): UserManifest {
   return {
     name: "Brain Capture",
     short_name: "BrainHub",
-    description: "将网页 AI 会话归档到个人 BrainHub。",
+    description: "将网页 AI 会话和手动精选文本归档到个人 BrainHub。",
     minimum_chrome_version: "120",
     icons: {
       16: "icons/icon-16.png",
@@ -22,7 +22,15 @@ export function createManifest(oauthClientId: string): UserManifest {
         32: "icons/icon-32.png",
       },
     },
-    permissions: ["alarms", "identity", "offscreen", "scripting", "storage"],
+    permissions: [
+      "alarms",
+      "contextMenus",
+      "identity",
+      "notifications",
+      "offscreen",
+      "scripting",
+      "storage",
+    ],
     host_permissions: ["https://www.googleapis.com/*"],
     optional_host_permissions: [
       "https://chatgpt.com/*",

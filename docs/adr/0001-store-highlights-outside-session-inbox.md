@@ -1,0 +1,3 @@
+# Store highlights outside the session inbox
+
+Selected webpage highlights are permanent user-curated originals, while `inbox` contains transient session records that are removed after ingestion. Store each highlight as a UTF-8 `.txt` file under `brain-hub/highlights/YYYY-MM/`, without a device-level directory, so session processing cannot consume it and the permanent collection remains browsable by capture month. The file body contains only the selected text after trimming outer whitespace and redacting credentials; internal spacing and line breaks remain unchanged, and no page-source metadata or frontmatter is added. Capture time and a random ID appear only in the unique filename.

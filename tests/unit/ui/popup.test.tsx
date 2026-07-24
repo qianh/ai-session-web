@@ -66,6 +66,7 @@ describe("PopupApp", () => {
     ["SITE_LIST_FAILED", "会话列表读取失败，请重试"],
     ["SITE_DETAIL_FAILED", "个别会话读取失败，请重试"],
     ["DRIVE_RATE_LIMITED", "Google Drive 限流，稍后自动重试"],
+    ["DRIVE_AUTH_REQUIRED", "Google Drive 授权已失效，请重新连接"],
     ["DRIVE_PERMISSION_DENIED", "Google Drive 拒绝访问，请重新授权 Drive 权限"],
     ["UPLOAD_VERIFICATION_FAILED", "Drive 写入提交失败，请重试"],
     ["SYNC_FAILED", "同步内部错误，请重新加载扩展后重试"],
@@ -107,6 +108,30 @@ describe("PopupApp", () => {
     expect(
       await screen.findByText("上次同步中断，点击重试"),
     ).toBeInTheDocument();
+  });
+
+  it("offers reconnection when the stored Drive authorization has expired", async () => {
+    const data = dashboard(true);
+    data.state.drive = {
+      status: "error",
+      rootFolderId: "drive-root",
+      connectedAt: "2026-07-19T01:00:00.000Z",
+      errorCode: "DRIVE_AUTH_REQUIRED",
+    };
+    const client: PopupClient = {
+      request: vi.fn(async () => data),
+      requestSitePermission: vi.fn(),
+      removeSitePermission: vi.fn(),
+    };
+
+    render(<PopupApp client={client} />);
+
+    expect(
+      await screen.findByText("Google Drive 需重新授权"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("授权已失效")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "连接" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "同步全部" })).toBeDisabled();
   });
 
   it("keeps successful progress visible when a site ends with an error", async () => {
@@ -169,6 +194,7 @@ describe("PopupApp", () => {
     ["SITE_HTTP_429", "站点限流，稍后自动重试"],
     ["BRIDGE_REQUEST_FAILED", "网络波动，稍后自动重试"],
     ["DRIVE_RATE_LIMITED", "Google Drive 限流，稍后自动重试"],
+    ["DRIVE_AUTH_REQUIRED", "Google Drive 授权已失效，请重新连接"],
     ["UPLOAD_VERIFICATION_FAILED", "Drive 写入提交失败，请重试"],
   ])(
     "translates %s in both the notice and site row",

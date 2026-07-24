@@ -104,6 +104,9 @@ export function PopupApp({ client }: { client?: PopupClient }) {
 
   const { state } = dashboard;
   const driveConnected = state.drive.status === "connected";
+  const driveAuthRequired =
+    state.drive.status === "error" &&
+    state.drive.errorCode === "DRIVE_AUTH_REQUIRED";
   const enabledCount = SITE_IDS.filter(
     (site) => state.sites[site].enabled,
   ).length;
@@ -165,9 +168,19 @@ export function PopupApp({ client }: { client?: PopupClient }) {
         </div>
         <div className="service-copy">
           <strong>
-            {driveConnected ? "Google Drive 已连接" : "Google Drive 未连接"}
+            {driveConnected
+              ? "Google Drive 已连接"
+              : driveAuthRequired
+                ? "Google Drive 需重新授权"
+                : "Google Drive 未连接"}
           </strong>
-          <span>{driveConnected ? "brain-hub" : "等待授权"}</span>
+          <span>
+            {driveConnected
+              ? "brain-hub"
+              : driveAuthRequired
+                ? "授权已失效"
+                : "等待授权"}
+          </span>
         </div>
         {driveConnected ? (
           <button
@@ -402,6 +415,7 @@ function errorLabel(code: string): string {
     SITE_TAB_REQUIRED: "请先打开并登录对应站点",
     SITE_HTTP_429: "站点限流，稍后自动重试",
     DRIVE_RATE_LIMITED: "Google Drive 限流，稍后自动重试",
+    DRIVE_AUTH_REQUIRED: "Google Drive 授权已失效，请重新连接",
     BRIDGE_REQUEST_FAILED: "网络波动，稍后自动重试",
     CLAUDE_ORG_REQUIRED: "未识别到 Claude Organization ID",
     SITE_SCHEMA_CHANGED: "站点接口结构已变化",
@@ -433,6 +447,7 @@ function siteSubtitle(
     const labels: Record<string, string> = {
       SITE_HTTP_429: "站点限流，稍后自动重试",
       DRIVE_RATE_LIMITED: "Google Drive 限流，稍后自动重试",
+      DRIVE_AUTH_REQUIRED: "Google Drive 授权已失效，请重新连接",
       DRIVE_PERMISSION_DENIED: "Google Drive 拒绝访问，请重新授权 Drive 权限",
       BRIDGE_REQUEST_FAILED: "网络波动，稍后自动重试",
       SITE_SCHEMA_CHANGED: "会话解析失败",

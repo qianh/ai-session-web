@@ -1,5 +1,10 @@
 import { BrainCaptureRuntime, runtimeErrorCode } from "../src/runtime/app";
 import {
+  handleHighlightContextMenuClick,
+  installHighlightContextMenu,
+  type HighlightContextMenuOptions,
+} from "../src/runtime/highlight-context-menu";
+import {
   isRuntimeRequest,
   isTrustedObserverSender,
   type RuntimeRequest,
@@ -9,6 +14,7 @@ import {
 interface BackgroundApi {
   runtime: {
     getPlatformInfo(): Promise<unknown>;
+    readonly lastError?: unknown;
     onMessage: {
       addListener(
         listener: (
@@ -24,6 +30,31 @@ interface BackgroundApi {
   alarms: {
     create(name: string, info: { periodInMinutes: number }): Promise<void>;
     onAlarm: { addListener(listener: (alarm: { name: string }) => void): void };
+  };
+  contextMenus: {
+    create(properties: {
+      id: string;
+      title: string;
+      contexts: readonly ["selection"];
+      documentUrlPatterns: readonly ["http://*/*", "https://*/*"];
+    }): string | number;
+    remove(menuItemId: string, callback: () => void): void;
+    onClicked: {
+      addListener(
+        listener: (info: {
+          menuItemId: string | number;
+          selectionText?: string;
+        }) => void,
+      ): void;
+    };
+  };
+  notifications: {
+    create(options: {
+      type: "basic";
+      iconUrl: string;
+      title: string;
+      message: string;
+    }): Promise<string>;
   };
 }
 
@@ -104,6 +135,14 @@ export function createBackgroundMessageListener({
   };
 }
 
+export function createHighlightContextMenuListener(
+  options: HighlightContextMenuOptions,
+): (info: { menuItemId: string | number; selectionText?: string }) => void {
+  return (info) => {
+    void handleHighlightContextMenuClick(info, options).catch(() => undefined);
+  };
+}
+
 export default defineBackground(() => {
   const api = (globalThis as unknown as { chrome: BackgroundApi }).chrome;
   const runtime = new BrainCaptureRuntime();
@@ -123,7 +162,16 @@ export default defineBackground(() => {
       runTask: (task) => keepalive.run(task),
     }),
   );
+  api.contextMenus.onClicked.addListener(
+    createHighlightContextMenuListener({
+      uploadHighlight: (selectionText) =>
+        runtime.uploadHighlight(selectionText),
+      runTask: (task) => keepalive.run(task),
+      notify: (notification) => api.notifications.create(notification),
+    }),
+  );
   api.runtime.onInstalled.addListener(() => {
+    installHighlightContextMenu(api.contextMenus, () => api.runtime.lastError);
     void initialize();
   });
   api.runtime.onStartup.addListener(() => {

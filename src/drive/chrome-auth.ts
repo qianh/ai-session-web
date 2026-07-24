@@ -1,4 +1,4 @@
-import type { TokenProvider } from "./rest-client";
+import { DriveAuthError, type TokenProvider } from "./rest-client";
 
 interface ChromeIdentityApi {
   getAuthToken(details: { interactive: boolean }): Promise<{ token?: string }>;
@@ -24,10 +24,14 @@ export class ChromeTokenProvider implements TokenProvider {
   }
 
   async #request(interactive: boolean): Promise<string> {
-    const result = await this.identity.getAuthToken({ interactive });
-    if (!result.token)
-      throw new Error("Google Drive authorization is required");
-    this.#token = result.token;
-    return result.token;
+    try {
+      const result = await this.identity.getAuthToken({ interactive });
+      if (!result.token) throw new DriveAuthError();
+      this.#token = result.token;
+      return result.token;
+    } catch (error) {
+      if (error instanceof DriveAuthError) throw error;
+      throw new DriveAuthError(error);
+    }
   }
 }

@@ -4,7 +4,7 @@ import {
   type ConversationSummary,
 } from "../adapters/shared";
 import { PageTransportError } from "../bridge/page-transport";
-import { DriveApiError } from "../drive/rest-client";
+import { DriveApiError, DriveAuthError } from "../drive/rest-client";
 import type {
   SessionUploadService,
   UploadResult,
@@ -181,8 +181,8 @@ export class SyncEngine {
       });
     } catch (error) {
       const errorCode = classifyError(error, stage);
-      await this.#store.update((state) =>
-        withStatus(state, site, {
+      await this.#store.update((state) => {
+        const next = withStatus(state, site, {
           phase:
             errorCode === "SITE_PERMISSION_REQUIRED"
               ? "needs-permission"
@@ -193,8 +193,18 @@ export class SyncEngine {
           archived,
           skipped,
           lastRunAt: runAt,
-        }),
-      );
+        });
+        return error instanceof DriveAuthError
+          ? {
+              ...next,
+              drive: {
+                ...next.drive,
+                status: "error",
+                errorCode: error.code,
+              },
+            }
+          : next;
+      });
       throw error;
     } finally {
       this.#running.delete(site);
@@ -280,6 +290,7 @@ function classifyError(error: unknown, stage: SyncStage = "state"): string {
   if (error instanceof PageTransportError || error instanceof SyncError)
     return error.code;
   if (error instanceof AdapterSchemaError) return "SITE_SCHEMA_CHANGED";
+  if (error instanceof DriveAuthError) return error.code;
   if (error instanceof DriveApiError) {
     if (error.retryable) return "DRIVE_RATE_LIMITED";
     if (error.status === 403) return "DRIVE_PERMISSION_DENIED";

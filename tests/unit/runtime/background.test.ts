@@ -4,6 +4,7 @@ import type {
   RuntimeRequest,
   RuntimeResponse,
 } from "../../../src/runtime/messages";
+import { HIGHLIGHT_CONTEXT_MENU_ID } from "../../../src/runtime/highlight-context-menu";
 
 describe("background runtime messages", () => {
   afterEach(() => {
@@ -160,6 +161,49 @@ describe("background runtime messages", () => {
     await secondRun;
     await vi.advanceTimersByTimeAsync(20_000);
     expect(getPlatformInfo).toHaveBeenCalledTimes(3);
+  });
+
+  it("detaches a highlight upload from the context-menu event", async () => {
+    vi.stubGlobal("defineBackground", (setup: () => void) => setup);
+    const background = (await import("../../../entrypoints/background")) as {
+      createHighlightContextMenuListener?: (options: {
+        uploadHighlight(selectionText: string): Promise<void>;
+        runTask(task: () => Promise<void>): Promise<void>;
+        notify(notification: {
+          type: "basic";
+          iconUrl: string;
+          title: string;
+          message: string;
+        }): Promise<unknown>;
+      }) => (info: {
+        menuItemId: string | number;
+        selectionText?: string;
+      }) => void;
+    };
+    const uploadHighlight = vi.fn(async () => undefined);
+    const runTask = vi.fn(async (task: () => Promise<void>) => task());
+    const notify = vi.fn(async () => undefined);
+    const listener = background.createHighlightContextMenuListener?.({
+      uploadHighlight,
+      runTask,
+      notify,
+    });
+
+    expect(listener).toBeTypeOf("function");
+    expect(
+      listener?.({
+        menuItemId: HIGHLIGHT_CONTEXT_MENU_ID,
+        selectionText: "selected text",
+      }),
+    ).toBeUndefined();
+    await vi.waitFor(() =>
+      expect(uploadHighlight).toHaveBeenCalledWith("selected text"),
+    );
+    await vi.waitFor(() =>
+      expect(notify).toHaveBeenCalledWith(
+        expect.objectContaining({ title: "上报成功" }),
+      ),
+    );
   });
 });
 

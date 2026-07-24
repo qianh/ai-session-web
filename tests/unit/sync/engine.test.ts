@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { BrowserSiteAdapter } from "../../../src/adapters/clients";
 import { AdapterSchemaError } from "../../../src/adapters/shared";
+import { ChromeTokenProvider } from "../../../src/drive/chrome-auth";
 import { DriveApiError } from "../../../src/drive/rest-client";
 import { createDefaultState } from "../../../src/state/store";
 import { SyncEngine } from "../../../src/sync/engine";
@@ -252,6 +253,74 @@ describe("SyncEngine", () => {
     expect(state.status.grok).toMatchObject({
       phase: "error",
       errorCode: "DRIVE_RATE_LIMITED",
+    });
+  });
+
+  it("requires Drive reauthorization when Chrome has no cached OAuth token", async () => {
+    let state = createDefaultState("device-test");
+    state.drive = {
+      status: "connected",
+      rootFolderId: "root-id",
+      connectedAt: "2026-07-19T01:00:00.000Z",
+    };
+    state.sites.grok.enabled = true;
+    const store = {
+      get: vi.fn(async () => structuredClone(state)),
+      update: vi.fn(async (mutate) => {
+        state = mutate(structuredClone(state));
+        return structuredClone(state);
+      }),
+    };
+    const tokenProvider = new ChromeTokenProvider({
+      getAuthToken: vi.fn(async () => ({})),
+      removeCachedAuthToken: vi.fn(),
+    });
+    const engine = new SyncEngine({
+      store,
+      adapters: {
+        grok: {
+          source: "grok-web",
+          listPage: vi.fn(async () => ({
+            items: [summary("needs-upload", "2026-07-19T03:00:00.000Z")],
+          })),
+          getConversation: vi.fn(async (item) => ({
+            source: "grok-web" as const,
+            conversationId: item.conversationId,
+            device: "device-test",
+            startedAt: item.startedAt,
+            updatedAt: item.updatedAt,
+            turns: [{ role: "user" as const, text: "hello", media: [] }],
+            warnings: [],
+          })),
+        },
+      },
+      pipeline: {
+        prepare: vi.fn(async (session) => ({
+          session,
+          markdown: "hello",
+          contentSha256: "a".repeat(64),
+        })),
+      },
+      uploader: {
+        upload: vi.fn(async () => {
+          await tokenProvider.getToken();
+          return { status: "uploaded" as const, driveFileId: "unreachable" };
+        }),
+      },
+    });
+
+    await expect(engine.syncSite("grok")).rejects.toMatchObject({
+      code: "DRIVE_AUTH_REQUIRED",
+    });
+    expect(state.status.grok).toMatchObject({
+      phase: "error",
+      errorCode: "DRIVE_AUTH_REQUIRED",
+    });
+    expect(state.drive).toEqual({
+      status: "error",
+      rootFolderId: "root-id",
+      connectedAt: "2026-07-19T01:00:00.000Z",
+      errorCode: "DRIVE_AUTH_REQUIRED",
     });
   });
 

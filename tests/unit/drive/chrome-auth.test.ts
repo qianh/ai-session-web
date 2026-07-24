@@ -46,7 +46,24 @@ describe("ChromeTokenProvider", () => {
     });
 
     await provider.invalidate("expired");
-    await expect(provider.getToken()).rejects.toThrow("authorization");
+    await expect(provider.getToken()).rejects.toMatchObject({
+      name: "DriveAuthError",
+      code: "DRIVE_AUTH_REQUIRED",
+    });
     expect(removeCachedAuthToken).toHaveBeenCalledWith({ token: "expired" });
+  });
+
+  it("normalizes a rejected non-interactive Chrome auth request", async () => {
+    const provider = new ChromeTokenProvider({
+      getAuthToken: vi.fn(async () => {
+        throw new Error("The user did not approve access");
+      }),
+      removeCachedAuthToken: vi.fn(),
+    });
+
+    await expect(provider.getToken()).rejects.toMatchObject({
+      name: "DriveAuthError",
+      code: "DRIVE_AUTH_REQUIRED",
+    });
   });
 });

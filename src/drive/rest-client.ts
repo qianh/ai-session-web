@@ -3,6 +3,15 @@ export interface TokenProvider {
   invalidate(token: string): Promise<void>;
 }
 
+export class DriveAuthError extends Error {
+  readonly code = "DRIVE_AUTH_REQUIRED";
+
+  constructor(readonly diagnosticCause?: unknown) {
+    super("Google Drive authorization is required");
+    this.name = "DriveAuthError";
+  }
+}
+
 export interface DriveHttp {
   request(
     path: string,
