@@ -4,7 +4,7 @@
 
 ## 商品详情
 
-- 类别：效率工具
+- 类别：工作流程与规划（Workflow & Planning）
 - 语言：中文（简体）
 - 商店图标：`public/icons/icon-128.png`
 - 屏幕截图：`assets/store/brainhub-capture-screenshot-1280x800.png`
