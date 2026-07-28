@@ -7,7 +7,7 @@
       name="description"
       content="BrainHub 是一组本地优先的开源工具，将网页和 CLI AI 会话保存到用户自己的 Google Drive。"
     />
-    <title>BrainHub | Your Drive, your archive</title>
+    <title>BrainHub</title>
     <link rel="icon" href="assets/icon-128.png" />
     <link rel="stylesheet" href="styles.css" />
   </head>
@@ -32,8 +32,8 @@
           <p class="eyebrow">Local-first · Open source · User-owned</p>
           <h1 id="hero-title">BrainHub</h1>
           <p class="lede">
-            把网页与命令行里的 AI 会话保存到你自己的 Google Drive。 没有
-            BrainHub
+            BrainHub 是一组本地优先的开源归档工具，把网页与命令行里的 AI
+            会话保存到你自己的 Google Drive。没有 BrainHub
             云端账号，没有中转采集服务器，也不把你的内容用于广告或模型训练。
           </p>
           <div class="hero-actions">
@@ -90,6 +90,43 @@
               >
             </p>
           </article>
+        </div>
+      </section>
+
+      <section class="band" aria-labelledby="google-data-title">
+        <div class="shell">
+          <div class="section-heading">
+            <h2 id="google-data-title">BrainHub 如何使用 Google Drive</h2>
+            <p>
+              BrainHub 请求 Google Drive
+              权限的唯一目的，是执行用户主动启用的归档、搜索和画像读取功能。Google
+              用户数据不会被发送到 BrainHub 维护者控制的服务器。
+            </p>
+          </div>
+          <div class="boundary-grid">
+            <article class="boundary-item">
+              <strong>Capture 写入</strong>
+              <p>
+                BrainHub Capture 使用
+                <code>drive.file</code
+                >，只创建和更新它自己创建或用户明确授权的归档文件。
+              </p>
+            </article>
+            <article class="boundary-item">
+              <strong>MCP 归档与读取</strong>
+              <p>
+                BrainHub MCP 上传用户选择的 CLI 会话，并从用户自己的 Drive 读取
+                <code>Digital_Twin_Profile.md</code> 和 BrainHub 归档内容。
+              </p>
+            </article>
+            <article class="boundary-item">
+              <strong>用户始终控制</strong>
+              <p>
+                授权可以随时撤销；升级或卸载不会删除 Drive
+                内容。详细的数据处理方式见隐私政策。
+              </p>
+            </article>
+          </div>
         </div>
       </section>
 
