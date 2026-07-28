@@ -1,10 +1,11 @@
 {
-  "name": "brain-capture",
+  "name": "brainhub-capture",
   "version": "0.1.5",
   "private": true,
+  "license": "Apache-2.0",
   "type": "module",
   "engines": {
-    "node": ">=22.0.0"
+    "node": ">=22.12.0"
   },
   "packageManager": "pnpm@10.26.0",
   "scripts": {
@@ -12,6 +13,7 @@
     "build": "wxt build && node scripts/audit-build.mjs",
     "build:release": "pnpm check:release && wxt build && node scripts/audit-build.mjs --release",
     "zip": "wxt zip",
+    "zip:store-bootstrap": "WXT_STORE_BOOTSTRAP=1 wxt zip && node scripts/audit-build.mjs --store-bootstrap",
     "zip:release": "pnpm check:release && wxt zip && node scripts/audit-build.mjs --release",
     "check:release": "node scripts/check-release.mjs",
     "verify": "pnpm test && pnpm typecheck && pnpm lint && pnpm format:check && pnpm build",

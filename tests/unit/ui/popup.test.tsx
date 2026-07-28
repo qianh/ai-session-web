@@ -9,6 +9,9 @@ function dashboard(grokEnabled = false) {
   state.drive = {
     status: "connected",
     rootFolderId: "drive-root",
+    accountEmail: "person@example.com",
+    accountDisplayName: "Person",
+    accountPermissionId: "permission-1",
     connectedAt: "2026-07-19T01:00:00.000Z",
   };
   state.sites.grok.enabled = grokEnabled;
@@ -30,8 +33,9 @@ describe("PopupApp", () => {
     };
     render(<PopupApp client={client} />);
 
-    expect(await screen.findByText("Brain Capture")).toBeInTheDocument();
+    expect(await screen.findByText("BrainHub Capture")).toBeInTheDocument();
     expect(screen.getByText("Google Drive 已连接")).toBeInTheDocument();
+    expect(screen.getByText(/person@example\.com/)).toBeInTheDocument();
     for (const site of ["ChatGPT", "Claude", "Gemini", "Grok"]) {
       expect(screen.getByText(site)).toBeInTheDocument();
     }
@@ -226,7 +230,7 @@ describe("PopupApp", () => {
     },
   );
 
-  it("requests only the selected site permission before enabling it", async () => {
+  it("requests only the selected site permission and starts its first backfill", async () => {
     const request = vi.fn(async (message) =>
       message.type === "GET_DASHBOARD" ? dashboard() : undefined,
     );
@@ -251,6 +255,12 @@ describe("PopupApp", () => {
         enabled: true,
       }),
     );
+    await waitFor(() =>
+      expect(request).toHaveBeenCalledWith({
+        type: "SYNC_SITE",
+        site: "grok",
+      }),
+    );
   });
 
   it("explains when Google authorization did not complete", async () => {
@@ -269,6 +279,42 @@ describe("PopupApp", () => {
     expect(
       await screen.findByText("Google 授权未完成，请重新连接并完成最后一步"),
     ).toBeInTheDocument();
+  });
+
+  it("lets the user choose one duplicate brain-hub folder", async () => {
+    const data = dashboard();
+    data.state.drive = {
+      status: "error",
+      errorCode: "DRIVE_ROOT_CONFLICT",
+      rootCandidates: [
+        { id: "root-a", name: "brain-hub", mimeType: "folder" },
+        { id: "root-b", name: "brain-hub", mimeType: "folder" },
+      ],
+    };
+    const request = vi.fn(async (message) =>
+      message.type === "GET_DASHBOARD" ? data : undefined,
+    );
+    const client: PopupClient = {
+      request,
+      requestSitePermission: vi.fn(),
+      removeSitePermission: vi.fn(),
+    };
+
+    render(<PopupApp client={client} />);
+    fireEvent.change(
+      await screen.findByRole("combobox", {
+        name: "选择 brain-hub 文件夹",
+      }),
+      { target: { value: "root-b" } },
+    );
+    fireEvent.click(screen.getByRole("button", { name: "使用所选文件夹" }));
+
+    await waitFor(() =>
+      expect(request).toHaveBeenCalledWith({
+        type: "CONNECT_DRIVE",
+        rootFolderId: "root-b",
+      }),
+    );
   });
 
   it.each([

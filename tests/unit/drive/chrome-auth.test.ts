@@ -66,4 +66,32 @@ describe("ChromeTokenProvider", () => {
       code: "DRIVE_AUTH_REQUIRED",
     });
   });
+
+  it("revokes the Google token and clears Chrome auth state", async () => {
+    const removeCachedAuthToken = vi.fn(async () => undefined);
+    const clearAllCachedAuthTokens = vi.fn(async () => undefined);
+    const fetcher = vi.fn(async () => new Response(null, { status: 200 }));
+    const provider = new ChromeTokenProvider(
+      {
+        getAuthToken: vi.fn(async () => ({ token: "drive-token" })),
+        removeCachedAuthToken,
+        clearAllCachedAuthTokens,
+      },
+      fetcher,
+    );
+
+    await provider.disconnect();
+
+    expect(fetcher).toHaveBeenCalledWith(
+      "https://oauth2.googleapis.com/revoke",
+      expect.objectContaining({
+        method: "POST",
+        body: expect.any(URLSearchParams),
+      }),
+    );
+    expect(removeCachedAuthToken).toHaveBeenCalledWith({
+      token: "drive-token",
+    });
+    expect(clearAllCachedAuthTokens).toHaveBeenCalledOnce();
+  });
 });

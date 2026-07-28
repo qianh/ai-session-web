@@ -1,6 +1,6 @@
 import type { DriveFolderApi } from "../drive/paths";
 import { DriveApiError } from "../drive/rest-client";
-import { ensureBrainHubRoot } from "../drive/root";
+import { DriveRootConflictError, ensureBrainHubRoot } from "../drive/root";
 import { DEVELOPMENT_OAUTH_CLIENT_ID } from "../platform/manifest";
 import type { StateStore } from "../state/store";
 
@@ -11,7 +11,13 @@ interface InteractiveTokenProvider {
 interface DriveConnectionOptions {
   oauthClientId: string;
   tokenProvider: InteractiveTokenProvider;
-  drive: Pick<DriveFolderApi, "listFolders" | "createFolder">;
+  drive: Pick<DriveFolderApi, "listFolders" | "createFolder"> & {
+    getAccount(): Promise<{
+      email: string;
+      displayName: string;
+      permissionId: string;
+    }>;
+  };
   store: StateStore;
   now?: () => Date;
 }
@@ -57,7 +63,7 @@ export class DriveConnectionService {
     this.#options = options;
   }
 
-  async connect(): Promise<string> {
+  async connect(selectedRootId?: string): Promise<string> {
     if (
       !this.#options.oauthClientId ||
       this.#options.oauthClientId === DEVELOPMENT_OAUTH_CLIENT_ID
@@ -72,26 +78,42 @@ export class DriveConnectionService {
         throw new DriveConnectionError("GOOGLE_AUTH_FAILED", error);
       }
       stage = "drive-root";
-      const rootFolderId = await ensureBrainHubRoot(this.#options.drive);
+      const account = await this.#options.drive.getAccount();
+      const rootFolderId = await ensureBrainHubRoot(
+        this.#options.drive,
+        selectedRootId,
+      );
       const connectedAt = (
         this.#options.now ?? (() => new Date())
       )().toISOString();
       await this.#options.store.update((state) => ({
         ...state,
-        drive: { status: "connected", rootFolderId, connectedAt },
+        drive: {
+          status: "connected",
+          rootFolderId,
+          accountEmail: account.email,
+          accountDisplayName: account.displayName,
+          accountPermissionId: account.permissionId,
+          connectedAt,
+        },
       }));
       return rootFolderId;
     } catch (error) {
       const code =
         error instanceof DriveConnectionError
           ? error.code
-          : driveConnectionErrorCode(error);
+          : error instanceof DriveRootConflictError
+            ? error.code
+            : driveConnectionErrorCode(error);
       await this.#options.store.update((state) => ({
         ...state,
         drive: {
           ...state.drive,
           status: "error",
           errorCode: code,
+          ...(error instanceof DriveRootConflictError
+            ? { rootCandidates: error.candidates }
+            : {}),
           diagnostic: driveDiagnostic(
             error instanceof DriveConnectionError &&
               error.diagnosticCause !== undefined
@@ -102,7 +124,7 @@ export class DriveConnectionService {
         },
       }));
       if (error instanceof DriveConnectionError) throw error;
-      throw new DriveConnectionError(code);
+      throw new DriveConnectionError(code, error);
     }
   }
 }

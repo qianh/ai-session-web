@@ -2,11 +2,18 @@ import { describe, expect, it } from "vitest";
 
 import {
   createManifest,
+  DEVELOPMENT_EXTENSION_KEY,
   DEVELOPMENT_OAUTH_CLIENT_ID,
   manifestDefinition,
 } from "../../src/platform/manifest";
 
 describe("Chrome manifest contract", () => {
+  it("uses the public BrainHub Capture product name", () => {
+    expect(manifestDefinition.name).toBe("BrainHub Capture");
+    expect(manifestDefinition.short_name).toBe("BrainHub");
+    expect(manifestDefinition.action?.default_title).toBe("BrainHub Capture");
+  });
+
   it("describes both automatic sessions and manual highlights", () => {
     expect(manifestDefinition.description).toBe(
       "将网页 AI 会话和手动精选文本归档到个人 BrainHub。",
@@ -26,9 +33,10 @@ describe("Chrome manifest contract", () => {
     ]);
   });
 
-  it("keeps persistent host access limited to the Drive API", () => {
+  it("keeps persistent host access limited to Drive and OAuth revocation", () => {
     expect(manifestDefinition.host_permissions).toEqual([
       "https://www.googleapis.com/*",
+      "https://oauth2.googleapis.com/*",
     ]);
     expect(manifestDefinition.optional_host_permissions).toEqual([
       "https://chatgpt.com/*",
@@ -45,7 +53,13 @@ describe("Chrome manifest contract", () => {
     expect(manifestDefinition.oauth2?.client_id).toMatch(
       /^[A-Za-z0-9._-]+\.apps\.googleusercontent\.com$/,
     );
-    expect(manifestDefinition.key).toMatch(/^[A-Za-z0-9+/]+=*$/);
+    expect(manifestDefinition.key).toBe(DEVELOPMENT_EXTENSION_KEY);
+  });
+
+  it("can omit the key for the first unpublished Web Store upload", () => {
+    expect(
+      createManifest(DEVELOPMENT_OAUTH_CLIENT_ID, { extensionKey: null }).key,
+    ).toBeUndefined();
   });
 
   it("ships local toolbar and extension icons", () => {

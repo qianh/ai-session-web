@@ -1,6 +1,8 @@
 # 数据与隐私边界
 
-Brain Capture 是本地 Chrome MV3 扩展，不依赖自建采集服务器。
+BrainHub Capture 是本地 Chrome MV3 扩展，不依赖自建采集服务器，也不包含产品遥测或远程崩溃上报。
+
+面向最终用户和 Google/Chrome Web Store 审核的公开隐私政策位于 <https://brainhub.john-qh.com/privacy.html>。
 
 ## 会读取的数据
 
@@ -16,6 +18,7 @@ Brain Capture 是本地 Chrome MV3 扩展，不依赖自建采集服务器。
 - 设备 ID、站点开关和工作空间选项
 - 增量水位、全量补拉标记和同步计数
 - Drive 根目录 ID、连接状态和错误码
+- 实际连接账号的邮箱、显示名称和 Drive permission ID
 - 媒体大小上限
 
 会话正文、精华正文、响应体、媒体字节、Cookie、OAuth 访问令牌和站点鉴权头不会写入扩展存储。正文在一次同步或上报的内存管道中完成处理和上传，流程结束后不保留本地副本；失败内容也不会在本地排队。
@@ -36,4 +39,8 @@ Brain Capture 是本地 Chrome MV3 扩展，不依赖自建采集服务器。
 
 ## Google Drive
 
-扩展仅申请 `drive.file`。上传采用临时候选文件、字节校验、稳定命名和重复项清理；水位只会在上传验证成功后推进。
+扩展仅申请 `drive.file`。持久 host 权限只包含 Google Drive API 与 Google OAuth 撤销端点；后者只在用户点击断开时调用。上传采用临时候选文件、字节校验、稳定命名和重复项清理；水位只会在上传验证成功后推进。
+
+授权绑定当前 Chrome Profile 中用户确认的 Google 账号。弹窗显示实际连接邮箱；扩展不提供独立账号选择器。切换账号需要先断开，然后切换 Chrome Profile 并重新连接。
+
+断开会调用 Google OAuth revoke、清除 Chrome 缓存 token，并清空扩展本地设置和水位。远程撤销暂时失败时本地清理仍会完成并显示错误。断开或卸载都不会删除 Drive 中的会话、附件或精华内容。

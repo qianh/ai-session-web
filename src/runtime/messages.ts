@@ -5,7 +5,7 @@ import type { StreamTurnCapture } from "../bridge/stream-capture";
 
 export type RuntimeRequest =
   | { type: "GET_DASHBOARD" }
-  | { type: "CONNECT_DRIVE" }
+  | { type: "CONNECT_DRIVE"; rootFolderId?: string }
   | { type: "DISCONNECT_DRIVE" }
   | { type: "SET_SITE_ENABLED"; site: SiteId; enabled: boolean }
   | {
@@ -56,6 +56,18 @@ export function isRuntimeRequest(value: unknown): value is RuntimeRequest {
   if (typeof value !== "object" || value === null || !("type" in value))
     return false;
   const type = (value as { type?: unknown }).type;
+  if (type === "CONNECT_DRIVE") {
+    const record = value as { rootFolderId?: unknown };
+    const keys = Object.keys(value).sort();
+    const expectedKeys =
+      record.rootFolderId === undefined ? ["type"] : ["rootFolderId", "type"];
+    return (
+      keys.join("\0") === expectedKeys.join("\0") &&
+      (record.rootFolderId === undefined ||
+        (typeof record.rootFolderId === "string" &&
+          record.rootFolderId.length > 0))
+    );
+  }
   if (type === "OBSERVED_CONVERSATION_COMPLETE") {
     const site = (value as { site?: unknown }).site;
     if (typeof site !== "string" || !SITE_IDS.includes(site as SiteId)) {

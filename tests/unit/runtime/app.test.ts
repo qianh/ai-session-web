@@ -146,13 +146,17 @@ describe("BrainCaptureRuntime badge", () => {
     expect(set).toHaveBeenCalledOnce();
   });
 
-  it("reconnects after a local disconnect without resetting Chrome OAuth", async () => {
+  it("revokes Chrome OAuth and clears local state on disconnect", async () => {
     const state = createDefaultState("device-test");
     state.drive = {
       status: "connected",
       rootFolderId: "root-id",
+      accountEmail: "person@example.com",
+      accountDisplayName: "Person",
+      accountPermissionId: "permission-1",
       connectedAt: "2026-07-20T01:00:00.000Z",
     };
+    state.sites.chatgpt.enabled = true;
     let oauthAuthorized = true;
     const clearAllCachedAuthTokens = vi.fn(async () => {
       oauthAuthorized = false;
@@ -219,13 +223,14 @@ describe("BrainCaptureRuntime badge", () => {
     const runtime = new BrainCaptureRuntime();
     await runtime.disconnectDrive();
 
-    await expect(runtime.connectDrive()).resolves.toBe("root-id");
-    expect(clearAllCachedAuthTokens).not.toHaveBeenCalled();
-    expect(getAuthToken).toHaveBeenCalledWith({ interactive: true });
-    expect(state.drive).toMatchObject({
-      status: "connected",
-      rootFolderId: "root-id",
+    expect(clearAllCachedAuthTokens).toHaveBeenCalledOnce();
+    expect(getAuthToken).toHaveBeenCalledWith({ interactive: false });
+    expect(state.drive).toEqual({ status: "disconnected" });
+    expect(state.sites.chatgpt).toMatchObject({
+      enabled: false,
+      fullBackfillPending: true,
     });
+    expect(JSON.stringify(state)).not.toContain("person@example.com");
   });
 
   it("requests a full backfill when non-personal workspaces are enabled", async () => {

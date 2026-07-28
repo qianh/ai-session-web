@@ -44,6 +44,18 @@ export const AppStateSchema = z.object({
   drive: z.object({
     status: z.enum(["disconnected", "connected", "error"]),
     rootFolderId: z.string().min(1).optional(),
+    accountEmail: z.string().email().optional(),
+    accountDisplayName: z.string().min(1).optional(),
+    accountPermissionId: z.string().min(1).optional(),
+    rootCandidates: z
+      .array(
+        z.object({
+          id: z.string().min(1),
+          name: z.string().min(1),
+          mimeType: z.string().min(1),
+        }),
+      )
+      .optional(),
     connectedAt: z.iso.datetime({ offset: true }).optional(),
     errorCode: z.string().min(1).optional(),
     diagnostic: z
@@ -139,5 +151,11 @@ export class ChromeStateStore implements StateStore {
     });
     this.#queue = operation.catch(() => undefined);
     return operation;
+  }
+
+  async reset(): Promise<AppState> {
+    const initial = createDefaultState(this.#deviceId());
+    await this.#area.set({ [STORAGE_KEY]: initial });
+    return initial;
   }
 }

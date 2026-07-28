@@ -1,90 +1,56 @@
-# Brain Capture
+# BrainHub Capture
 
-Brain Capture 是 BrainHub 的 Chrome Manifest V3 采集扩展。它按站点授权访问当前已登录的网页会话，将 ChatGPT、Claude、Gemini 和 Grok 的可见活动分支转换为统一 Markdown；用户也可以把任意普通网页中手动选中的文本上报为精华内容。两类内容都直接写入个人 Google Drive 的 `brain-hub/` 目录。
+BrainHub Capture 是独立安装的 Google Chrome 扩展。它把 ChatGPT、Claude、Gemini 和 Grok 的网页 AI 会话，以及用户主动选择的普通网页文本，直接写入用户自己的 Google Drive。
 
-## 当前能力
+扩展不依赖 BrainHub MCP，不读取画像，不处理 cards 或周报，也没有遥测、远程崩溃上报和自更新代码。
 
-- 四站同一版本：`chatgpt.com`、`claude.ai`、`gemini.google.com`、`grok.com`
-- 首次启用站点时默认全量补拉，之后每 30 分钟按水位增量同步
-- 网页回答持久化后触发一次站点级即时补拉；若站点主接口失效，则把内存中当前一轮作为明确标记的降级文件归档
-- 默认只采集个人空间；团队或组织空间必须逐站显式开启
-- 归档可访问的图片与附件，单文件默认上限 100 MB；失败时保留原链接和警告
-- 任意普通网页选中文本后，可通过右键“上报 Google Drive”立即保存为独立精华条目
-- 精华条目以 UTF-8 纯文本永久保存到 `highlights/YYYY-MM/`，不记录页面标题或来源 URL
-- Drive 使用 `drive.file` 最小权限，只能管理本扩展创建或经用户授权给它的文件
-- 扩展本地只保存设置、水位、哈希和错误状态，不保存会话正文、媒体、Cookie 或访问令牌
+## 安装
 
-降级文件只包含触发完成事件的当前一轮问答，不冒充完整会话。它使用内容哈希去重，仍经过统一脱敏、字节校验和原子上传；主适配器错误状态与 `!` 徽标会继续保留，提示后续修复并补拉完整会话。
+第一版只支持 Google Chrome。正式上架后，普通用户从 Chrome Web Store 安装，后续版本也只通过商店更新。上架状态与公开隐私资料见 [BrainHub 官网](https://brainhub.john-qh.com/)。
 
-## 为什么需要 Google Cloud
+首次使用：
 
-Google Drive 本身只负责文件存储，不能直接给一个 Chrome 扩展分配 OAuth 身份。Google Cloud 项目用于启用 Drive API、配置授权提示页并创建扩展专用的 OAuth Client ID。它不承载 BrainHub 会话，也不需要部署服务器或开通付费资源。
+1. 点击扩展图标并连接 Google Drive。
+2. Chrome 会使用当前 Chrome Profile 的 Google 登录状态打开授权页；用户确认自己的账号并同意授权即可。
+3. 授权成功后，弹窗显示实际连接邮箱，并创建或绑定该账号 My Drive 根目录下唯一的 `brain-hub/`。
+4. 分别启用需要归档的站点权限。每个站点第一次启用时默认全量回填可见历史，之后每 30 分钟增量同步。
 
-OAuth Client ID 是公开的应用标识，不是 Client Secret。扩展通过 Chrome Identity 获取短期访问令牌；令牌不会写入扩展存储。
+若 Drive 中有多个可访问的同名 `brain-hub`，扩展会停止写入并要求用户明确选择，不会自动合并或删除目录。
 
-## 创建 OAuth Client ID
+## 账号切换与断开
 
-固定扩展 ID：
+扩展一次只绑定当前 Chrome Profile 的一个 Google 账号。需要切换时：
 
-```text
-gljnhnhnkdjofigpbfdhiacbelljijmn
-```
+1. 在扩展弹窗中断开 Google Drive。
+2. 切换到目标 Chrome Profile。
+3. 在该 Profile 中重新连接并授权。
 
-1. 打开 [Google Cloud Console](https://console.cloud.google.com/)，创建或选择一个项目。
-2. 在“API 和服务 / 库”中搜索并启用 **Google Drive API**。
-3. 打开 **Google Auth Platform**，填写应用名称 `Brain Capture`、支持邮箱和联系邮箱。
-4. Audience 选择 **External**。保持 Testing 状态，并把实际使用 Drive 的 Google 账号加入 Test users；个人自用不必发布应用。
-5. 在 Data Access 中加入 `https://www.googleapis.com/auth/drive.file`。
-6. 在 Clients 中创建 OAuth Client，应用类型选择 **Chrome Extension**。
-7. Application ID 填入上面的固定扩展 ID，创建后复制以 `.apps.googleusercontent.com` 结尾的 Client ID。
+断开会撤销 OAuth 授权、清除 Chrome 缓存 token 和扩展本地状态。断开或卸载扩展都不会删除 Drive 内容。
 
-本项目不需要 Client Secret。若 Google Cloud 的新界面名称略有变化，关键对象仍是：Drive API、OAuth consent/branding、Test user、Chrome Extension client。
+## 数据边界
 
-## 构建与安装
+- AI 会话写入 `brain-hub/inbox/<device>/`，不会创建 `sessions/`。
+- 用户右键保存的网页选中文本写入 `brain-hub/highlights/YYYY-MM/`。
+- Google Drive 权限固定为 `drive.file`，扩展只能管理自己创建或用户授权给它的文件。
+- 站点访问是逐站可选权限，只包含 `chatgpt.com`、`claude.ai`、`gemini.google.com` 和 `grok.com`。
+- 会话与选中文本在上传前执行凭据脱敏；本地不持久化正文、媒体、Cookie 或 OAuth token。
+- 禁用再启用站点会续接原水位；只有“下次全量补拉”会重置该站点回填状态。
 
-环境要求：Node.js 22+、pnpm 10.26+、Chrome 120+。
+完整说明见 [数据与隐私边界](docs/privacy.md) 与公开的 [隐私政策](https://brainhub.john-qh.com/privacy.html)。
 
-```bash
-pnpm install
-WXT_GOOGLE_OAUTH_CLIENT_ID='你的-client-id.apps.googleusercontent.com' pnpm build:release
-```
+## 源码开发
 
-然后打开 `chrome://extensions`：
+官方商店包在构建时注入与固定扩展 ID 匹配的 BrainHub OAuth Client ID。源码构建与 fork 必须使用自己的 Google Cloud Chrome Extension OAuth Client。
 
-1. 开启“开发者模式”。
-2. 点击“加载已解压的扩展程序”。
-3. 选择本项目的 `.output/chrome-mv3/` 目录。
-4. 确认扩展 ID 等于 `gljnhnhnkdjofigpbfdhiacbelljijmn`。
-
-`pnpm build` 允许使用占位 Client ID，便于本地开发和测试，但此产物无法连接 Drive。`pnpm build:release` 和 `pnpm zip:release` 会拒绝占位或格式错误的 Client ID。
-
-## 首次使用
-
-1. 点击扩展图标，再点击 Google Drive“连接”，在 Chrome 弹出的 Google 授权页确认 `drive.file` 权限。
-2. 授权成功后，扩展会创建或复用 `brain-hub/` 根目录。
-3. 在任意普通网页中选中文字，右键点击“上报 Google Drive”；成功后会收到系统通知。
-4. 如需归档 AI 会话，先打开并登录目标 AI 站点，再在弹窗中逐站开启；Chrome 只会请求该站点的访问权限。
-5. 点击站点旁的同步按钮，或点击顶部“同步全部”。首次同步会进行全量补拉。
-6. 站点内部接口发生变化时，弹窗和扩展徽标会显示异常；其他站点仍独立继续同步。
-
-单条精华按 UTF-8 字节计算最大为 512 KiB。扩展会裁剪选区首尾空白、保留正文内部排版，并沿用凭证脱敏规则；超限或空白选区会直接失败，不截断也不在本地排队。
-
-## 开发验证
+要求 Node.js `>=22.12.0` 与 pnpm 10.26：
 
 ```bash
+pnpm install --frozen-lockfile
 pnpm verify
 ```
 
-单独运行开发服务器：
+开发构建可使用占位 OAuth，不能连接 Drive。可连接 Drive 的源码构建方法见 [Google OAuth 配置](docs/google-oauth-setup.md)。
 
-```bash
-pnpm dev
-```
+## 许可
 
-补充资料：
-
-- [Google OAuth 配置](./docs/google-oauth-setup.md)
-- [数据与隐私边界](./docs/privacy.md)
-- [站点适配器与协议边界](./docs/site-adapters.md)
-
-实现依据见 [BrainHub-开发手册-v0.2.md](./BrainHub-开发手册-v0.2.md) 和 [实施计划](./docs/superpowers/plans/2026-07-19-brain-capture.md)。
+Apache License 2.0。安全问题请使用 GitHub Security Advisory 私下报告。

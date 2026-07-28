@@ -29,14 +29,23 @@ describe("build artifact audit", () => {
     );
   });
 
-  it("requires only the narrow Drive API host access", () => {
+  it("accepts only a keyless unpublished Web Store bootstrap manifest", () => {
+    const bootstrap = validManifest();
+    delete bootstrap.key;
+    expect(auditManifest(bootstrap, { storeBootstrap: true })).toEqual([]);
+    expect(auditManifest(validManifest(), { storeBootstrap: true })).toContain(
+      "商店引导包不得预设扩展公钥",
+    );
+  });
+
+  it("requires only the Drive and OAuth revocation hosts", () => {
     const manifestWithoutDriveHost = validManifest(
       "real-client.apps.googleusercontent.com",
     );
     delete manifestWithoutDriveHost.host_permissions;
     expect(
       auditManifest(manifestWithoutDriveHost, { release: true }),
-    ).toContain("host_permissions 必须仅允许 Google Drive API");
+    ).toContain("host_permissions 必须仅允许 Drive API 与 OAuth 撤销端点");
     expect(
       auditManifest(
         {
@@ -45,7 +54,7 @@ describe("build artifact audit", () => {
         },
         { release: true },
       ),
-    ).toContain("host_permissions 必须仅允许 Google Drive API");
+    ).toContain("host_permissions 必须仅允许 Drive API 与 OAuth 撤销端点");
   });
 
   it("requires both runtime observer bundles", () => {

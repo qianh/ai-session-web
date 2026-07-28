@@ -23,8 +23,15 @@ try {
 const oauthClientId =
   runtimeProcess?.env?.WXT_GOOGLE_OAUTH_CLIENT_ID ??
   DEVELOPMENT_OAUTH_CLIENT_ID;
+const storeBootstrap = runtimeProcess?.env?.WXT_STORE_BOOTSTRAP === "1";
+const extensionKey = storeBootstrap
+  ? null
+  : runtimeProcess?.env?.WXT_EXTENSION_PUBLIC_KEY?.trim() || undefined;
 
 export default defineConfig({
   modules: ["@wxt-dev/module-react"],
-  manifest: createManifest(oauthClientId),
+  manifest: createManifest(
+    oauthClientId,
+    extensionKey === undefined ? {} : { extensionKey },
+  ),
 });

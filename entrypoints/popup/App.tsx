@@ -44,6 +44,7 @@ export function PopupApp({ client }: { client?: PopupClient }) {
   const [busy, setBusy] = useState<string>();
   const [expanded, setExpanded] = useState<SiteId>();
   const [errorCode, setErrorCode] = useState<string>();
+  const [selectedRootId, setSelectedRootId] = useState<string>();
 
   const load = useCallback(async () => {
     const result = await activeClient.request({ type: "GET_DASHBOARD" });
@@ -80,6 +81,13 @@ export function PopupApp({ client }: { client?: PopupClient }) {
           throw new PopupError("SITE_PERMISSION_DENIED");
         }
         await activeClient.request({ type: "SET_SITE_ENABLED", site, enabled });
+        if (
+          enabled &&
+          dashboard?.state.drive.status === "connected" &&
+          dashboard.state.sites[site].fullBackfillPending
+        ) {
+          await activeClient.request({ type: "SYNC_SITE", site });
+        }
         if (!enabled) await activeClient.removeSitePermission(site);
         await load();
       } catch (error) {
@@ -88,14 +96,14 @@ export function PopupApp({ client }: { client?: PopupClient }) {
         setBusy(undefined);
       }
     },
-    [activeClient, load],
+    [activeClient, dashboard, load],
   );
 
   if (!dashboard) {
     return (
       <main
         className="popup-shell loading-state"
-        aria-label="Brain Capture 加载中"
+        aria-label="BrainHub Capture 加载中"
       >
         <LoaderCircle className="spin" size={22} aria-hidden="true" />
       </main>
@@ -107,6 +115,12 @@ export function PopupApp({ client }: { client?: PopupClient }) {
   const driveAuthRequired =
     state.drive.status === "error" &&
     state.drive.errorCode === "DRIVE_AUTH_REQUIRED";
+  const rootConflict =
+    state.drive.status === "error" &&
+    state.drive.errorCode === "DRIVE_ROOT_CONFLICT" &&
+    Boolean(state.drive.rootCandidates?.length);
+  const rootSelection =
+    selectedRootId ?? state.drive.rootCandidates?.[0]?.id ?? "";
   const enabledCount = SITE_IDS.filter(
     (site) => state.sites[site].enabled,
   ).length;
@@ -118,7 +132,7 @@ export function PopupApp({ client }: { client?: PopupClient }) {
           <Database size={18} />
         </div>
         <div className="brand-copy">
-          <h1>Brain Capture</h1>
+          <h1>BrainHub Capture</h1>
           <p>{enabledCount} 个站点已启用</p>
         </div>
         <button
@@ -170,44 +184,81 @@ export function PopupApp({ client }: { client?: PopupClient }) {
           <strong>
             {driveConnected
               ? "Google Drive 已连接"
-              : driveAuthRequired
-                ? "Google Drive 需重新授权"
-                : "Google Drive 未连接"}
+              : rootConflict
+                ? "选择 brain-hub 文件夹"
+                : driveAuthRequired
+                  ? "Google Drive 需重新授权"
+                  : "Google Drive 未连接"}
           </strong>
           <span>
             {driveConnected
-              ? "brain-hub"
-              : driveAuthRequired
-                ? "授权已失效"
-                : "等待授权"}
+              ? `${state.drive.accountEmail ?? "Google 账号"} · brain-hub`
+              : rootConflict
+                ? "检测到多个同名文件夹"
+                : driveAuthRequired
+                  ? "授权已失效"
+                  : "等待授权"}
           </span>
         </div>
-        {driveConnected ? (
-          <button
-            className="icon-button"
-            type="button"
-            title="断开 Google Drive"
-            aria-label="断开 Google Drive"
-            disabled={Boolean(busy)}
-            onClick={() => void run("drive", { type: "DISCONNECT_DRIVE" })}
-          >
-            <Unplug size={16} />
-          </button>
-        ) : (
-          <button
-            className="command-button"
-            type="button"
-            disabled={!dashboard.oauthConfigured || Boolean(busy)}
-            onClick={() => void run("drive", { type: "CONNECT_DRIVE" })}
-          >
-            {busy === "drive" ? (
-              <LoaderCircle className="spin" size={15} />
-            ) : (
-              <Link2 size={15} />
-            )}
-            连接
-          </button>
-        )}
+        <div className="drive-actions">
+          {rootConflict && (
+            <select
+              className="root-picker"
+              aria-label="选择 brain-hub 文件夹"
+              value={rootSelection}
+              disabled={Boolean(busy)}
+              onChange={(event) => setSelectedRootId(event.target.value)}
+            >
+              {state.drive.rootCandidates?.map((folder) => (
+                <option key={folder.id} value={folder.id}>
+                  {folder.name} · {folder.id}
+                </option>
+              ))}
+            </select>
+          )}
+          {driveConnected ? (
+            <button
+              className="icon-button"
+              type="button"
+              title="断开 Google Drive"
+              aria-label="断开 Google Drive"
+              disabled={Boolean(busy)}
+              onClick={() => void run("drive", { type: "DISCONNECT_DRIVE" })}
+            >
+              <Unplug size={16} />
+            </button>
+          ) : rootConflict ? (
+            <button
+              className="command-button"
+              type="button"
+              aria-label="使用所选文件夹"
+              disabled={!rootSelection || Boolean(busy)}
+              onClick={() =>
+                void run("drive", {
+                  type: "CONNECT_DRIVE",
+                  rootFolderId: rootSelection,
+                })
+              }
+            >
+              <Check size={15} />
+              使用
+            </button>
+          ) : (
+            <button
+              className="command-button"
+              type="button"
+              disabled={!dashboard.oauthConfigured || Boolean(busy)}
+              onClick={() => void run("drive", { type: "CONNECT_DRIVE" })}
+            >
+              {busy === "drive" ? (
+                <LoaderCircle className="spin" size={15} />
+              ) : (
+                <Link2 size={15} />
+              )}
+              连接
+            </button>
+          )}
+        </div>
       </section>
 
       <section className="sites-section" aria-labelledby="sites-title">
@@ -409,6 +460,8 @@ function errorLabel(code: string): string {
     DRIVE_PERMISSION_DENIED: "Google Drive 拒绝访问，请重新授权 Drive 权限",
     DRIVE_NETWORK_FAILED: "无法访问 Google Drive，请检查网络后重试",
     DRIVE_CONNECT_FAILED: "Google Drive 连接失败，请重新授权后重试",
+    DRIVE_ROOT_CONFLICT: "检测到多个 brain-hub 文件夹，请选择一个",
+    GOOGLE_REVOKE_FAILED: "本地数据已清除，但 Google 撤权失败",
     DRIVE_NOT_CONNECTED: "Google Drive 尚未连接",
     SITE_PERMISSION_DENIED: "站点访问权限未授予",
     SITE_PERMISSION_REQUIRED: "需要站点访问权限",

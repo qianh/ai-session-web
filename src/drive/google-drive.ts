@@ -60,16 +60,40 @@ function concatenate(chunks: Uint8Array[]): Uint8Array<ArrayBuffer> {
 export class GoogleDriveGateway implements DriveFolderApi {
   constructor(readonly http: DriveHttp) {}
 
+  async getAccount(): Promise<{
+    email: string;
+    displayName: string;
+    permissionId: string;
+  }> {
+    const response = await this.http.json<{
+      user?: {
+        emailAddress?: string;
+        displayName?: string;
+        permissionId?: string;
+      };
+    }>(
+      `/about?${params({ fields: "user(displayName,emailAddress,permissionId)" })}`,
+    );
+    const email = response.user?.emailAddress?.trim();
+    const displayName = response.user?.displayName?.trim();
+    const permissionId = response.user?.permissionId?.trim();
+    if (!email || !displayName || !permissionId) {
+      throw new Error("Google Drive account identity is incomplete");
+    }
+    return { email, displayName, permissionId };
+  }
+
   async listFolders(
     name: string,
     parentId?: string,
   ): Promise<DriveFileMetadata[]> {
+    const parent = parentId ?? "root";
     const clauses = [
       `name = '${escapeQuery(name)}'`,
       `mimeType = '${FOLDER_MIME_TYPE}'`,
       "trashed = false",
+      `'${escapeQuery(parent)}' in parents`,
     ];
-    if (parentId) clauses.push(`'${escapeQuery(parentId)}' in parents`);
     return this.listFiles(clauses.join(" and "));
   }
 
@@ -85,7 +109,7 @@ export class GoogleDriveGateway implements DriveFolderApi {
         body: JSON.stringify({
           name,
           mimeType: FOLDER_MIME_TYPE,
-          ...(parentId ? { parents: [parentId] } : {}),
+          parents: [parentId ?? "root"],
         }),
       },
     );

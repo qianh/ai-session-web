@@ -6,6 +6,23 @@ import {
 } from "../../../src/runtime/messages";
 
 describe("runtime message validation", () => {
+  it("accepts only a bounded Drive connection request", () => {
+    expect(isRuntimeRequest({ type: "CONNECT_DRIVE" })).toBe(true);
+    expect(
+      isRuntimeRequest({ type: "CONNECT_DRIVE", rootFolderId: "root-a" }),
+    ).toBe(true);
+    expect(isRuntimeRequest({ type: "CONNECT_DRIVE", rootFolderId: 42 })).toBe(
+      false,
+    );
+    expect(
+      isRuntimeRequest({
+        type: "CONNECT_DRIVE",
+        rootFolderId: "root-a",
+        token: "must not enter the runtime",
+      }),
+    ).toBe(false);
+  });
+
   it("accepts only an exact observed-completion message", () => {
     expect(
       isRuntimeRequest({

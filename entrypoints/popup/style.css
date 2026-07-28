@@ -210,6 +210,25 @@ select:disabled {
   font-weight: 650;
 }
 
+.drive-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.root-picker {
+  width: 132px;
+  min-height: 30px;
+  border: 1px solid #c9cfd3;
+  border-radius: 6px;
+  padding: 0 7px;
+  color: #283036;
+  background: #ffffff;
+  font: inherit;
+  font-size: 11px;
+}
+
 .sites-section {
   background: #ffffff;
 }

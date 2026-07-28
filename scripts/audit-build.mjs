@@ -6,7 +6,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 const developmentOauthClientId =
   "brain-capture-development.apps.googleusercontent.com";
-const expectedExtensionId = "gljnhnhnkdjofigpbfdhiacbelljijmn";
+const defaultExpectedExtensionId = "gljnhnhnkdjofigpbfdhiacbelljijmn";
 const expectedPermissions = [
   "alarms",
   "contextMenus",
@@ -16,7 +16,10 @@ const expectedPermissions = [
   "scripting",
   "storage",
 ];
-const expectedHostPermissions = ["https://www.googleapis.com/*"];
+const expectedHostPermissions = [
+  "https://www.googleapis.com/*",
+  "https://oauth2.googleapis.com/*",
+];
 const expectedOrigins = [
   "https://chatgpt.com/*",
   "https://claude.ai/*",
@@ -32,7 +35,12 @@ export const requiredRuntimeFiles = [
 
 export function auditManifest(
   manifest,
-  { release = false, expectedOauthClientId } = {},
+  {
+    release = false,
+    storeBootstrap = false,
+    expectedOauthClientId,
+    expectedExtensionId = defaultExpectedExtensionId,
+  } = {},
 ) {
   const errors = [];
   if (manifest?.manifest_version !== 3)
@@ -41,7 +49,7 @@ export function auditManifest(
     errors.push("扩展权限集合与发布契约不一致");
   }
   if (!sameArray(manifest?.host_permissions, expectedHostPermissions)) {
-    errors.push("host_permissions 必须仅允许 Google Drive API");
+    errors.push("host_permissions 必须仅允许 Drive API 与 OAuth 撤销端点");
   }
   if (!sameArray(manifest?.optional_host_permissions, expectedOrigins)) {
     errors.push("可选站点权限集合与发布契约不一致");
@@ -56,14 +64,20 @@ export function auditManifest(
   if (expectedOauthClientId && clientId !== expectedOauthClientId) {
     errors.push("构建产物中的 OAuth Client ID 与环境变量不一致");
   }
-  if (typeof manifest?.key !== "string" || manifest.key.length === 0) {
-    errors.push("manifest 缺少稳定公钥");
-  }
-  if (
-    typeof manifest?.key === "string" &&
-    extensionIdFromKey(manifest.key) !== expectedExtensionId
-  ) {
-    errors.push("manifest 公钥生成的扩展 ID 与固定 ID 不一致");
+  if (storeBootstrap) {
+    if (manifest?.key !== undefined) {
+      errors.push("商店引导包不得预设扩展公钥");
+    }
+  } else {
+    if (typeof manifest?.key !== "string" || manifest.key.length === 0) {
+      errors.push("manifest 缺少稳定公钥");
+    }
+    if (
+      typeof manifest?.key === "string" &&
+      extensionIdFromKey(manifest.key) !== expectedExtensionId
+    ) {
+      errors.push("manifest 公钥生成的扩展 ID 与预期 ID 不一致");
+    }
   }
   if (typeof manifest?.background?.service_worker !== "string") {
     errors.push("manifest 缺少 MV3 background service worker");
@@ -103,14 +117,18 @@ function extensionIdFromKey(key) {
   }
 }
 
-async function auditOutput(outputDir, release) {
+async function auditOutput(outputDir, { release, storeBootstrap }) {
   const manifestPath = join(outputDir, "manifest.json");
   const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
   const errors = auditManifest(manifest, {
     release,
+    storeBootstrap,
     expectedOauthClientId: release
       ? process.env.WXT_GOOGLE_OAUTH_CLIENT_ID?.trim()
       : undefined,
+    expectedExtensionId:
+      process.env.WXT_EXPECTED_EXTENSION_ID?.trim() ||
+      defaultExpectedExtensionId,
   });
   const referencedFiles = [
     ...requiredRuntimeFiles,
@@ -155,15 +173,25 @@ const invokedPath = process.argv[1]
   : "";
 if (import.meta.url === invokedPath) {
   const release = process.argv.includes("--release");
+  const storeBootstrap = process.argv.includes("--store-bootstrap");
   const scriptDirectory = dirname(fileURLToPath(import.meta.url));
   const outputDir = resolve(scriptDirectory, "../.output/chrome-mv3");
-  const errors = await auditOutput(outputDir, release).catch((error) => [
+  const errors = await auditOutput(outputDir, {
+    release,
+    storeBootstrap,
+  }).catch((error) => [
     `无法审计构建产物：${error instanceof Error ? error.message : String(error)}`,
   ]);
   if (errors.length > 0) {
     for (const error of errors) console.error(`- ${error}`);
     process.exitCode = 1;
   } else {
-    console.log(release ? "正式构建产物审计通过。" : "开发构建产物审计通过。");
+    console.log(
+      storeBootstrap
+        ? "Chrome Web Store 引导包审计通过。"
+        : release
+          ? "正式构建产物审计通过。"
+          : "开发构建产物审计通过。",
+    );
   }
 }

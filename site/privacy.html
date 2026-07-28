@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="BrainHub Capture 与 BrainHub MCP 的隐私政策和 Google API Limited Use 声明。"
+    />
+    <title>隐私政策 | BrainHub</title>
+    <link rel="icon" href="assets/icon-128.png" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="shell">
+        <a class="brand-link" href="index.html" aria-label="BrainHub 首页">
+          <img src="assets/icon-128.png" alt="" width="32" height="32" />
+          <span>BrainHub</span>
+        </a>
+        <nav class="site-nav" aria-label="主导航">
+          <a href="index.html#products">产品</a>
+          <a href="privacy.html" aria-current="page">隐私</a>
+          <a href="terms.html">条款</a>
+        </nav>
+      </div>
+    </header>
+
+    <main class="shell legal-page">
+      <header class="legal-header">
+        <p class="eyebrow">BrainHub legal</p>
+        <h1>隐私政策</h1>
+        <p>
+          本政策适用于 BrainHub Capture 与 BrainHub
+          MCP。两个组件均为本地优先的开源工具，不要求 BrainHub
+          云端账号，也不通过 BrainHub 服务器中转用户内容。
+        </p>
+        <p class="legal-meta">
+          生效日期：2026-07-28 · 联系邮箱：johnqh90@gmail.com
+        </p>
+      </header>
+
+      <section class="legal-section">
+        <h2>我们不收集什么</h2>
+        <p>
+          维护者不会接收、存储或查看用户的 AI 会话、网页精华、Google Drive
+          文件、搜索查询、数字画像、OAuth token、Cookie
+          或本地索引。产品不包含广告、产品遥测、远程崩溃上报或用户行为分析。
+        </p>
+      </section>
+
+      <section class="legal-section">
+        <h2>BrainHub Capture</h2>
+        <p>
+          Capture 仅在用户显式连接 Google Drive
+          并逐站启用权限后，读取对应站点当前账号可见的会话内容。普通网页只在用户主动选择文本并执行保存命令时读取该选区。
+        </p>
+        <ul>
+          <li>
+            Google
+            权限：<code>drive.file</code>，仅管理该应用创建或用户授权给该应用的文件。
+          </li>
+          <li>
+            写入位置：<code>brain-hub/inbox/</code> 与
+            <code>brain-hub/highlights/</code>。
+          </li>
+          <li>
+            本地只保存账号标识、Drive 根目录
+            ID、站点开关、同步水位和运行状态，不持久化正文或 OAuth token。
+          </li>
+          <li>
+            站点权限仅包含用户主动启用的 ChatGPT、Claude、Gemini 与 Grok。
+          </li>
+        </ul>
+      </section>
+
+      <section class="legal-section">
+        <h2>BrainHub MCP</h2>
+        <p>
+          MCP 在用户自己的 Mac 上只读解析 Claude Code、Codex CLI 和 Grok Build
+          的顶层会话，脱敏后写入用户选择的
+          Drive。语义模型、文本分块、向量与搜索索引均保存在本地。
+        </p>
+        <ul>
+          <li>
+            Google 权限：完整 Drive scope，用于维护选定的
+            <code>brain-hub/inbox/</code>，并读取 My Drive 根目录的
+            <code>Digital_Twin_Profile.md</code>。
+          </li>
+          <li>
+            MCP 工具不接受任意 Drive 路径或 file ID；写操作被限制在绑定的
+            BrainHub 根目录内。
+          </li>
+          <li>
+            Google refresh token 保存在 macOS Keychain，不写入配置、SQLite
+            或日志。
+          </li>
+          <li>
+            模型下载只连接 Hugging Face；版本检查只连接
+            npm。会话、画像和搜索查询不会发送到这些服务。
+          </li>
+        </ul>
+      </section>
+
+      <section class="legal-section">
+        <h2>Google API Limited Use</h2>
+        <p>
+          BrainHub 对通过 Google API 获得的数据的使用和传输遵守
+          <a
+            href="https://developers.google.com/terms/api-services-user-data-policy"
+            >Google API Services User Data Policy</a
+          >，包括 Limited Use 要求。
+        </p>
+        <ul>
+          <li>数据只用于用户明确请求的归档、搜索、会话读取与画像读取功能。</li>
+          <li>
+            不会向第三方出售或转移用户数据，也不会用于广告、信用评估或训练通用
+            AI 模型。
+          </li>
+          <li>
+            维护者不会允许人工读取用户数据，除非用户明确分享特定内容用于支持，或法律与安全义务要求。
+          </li>
+          <li>产品无需将 Google 用户数据传输到维护者控制的服务器。</li>
+        </ul>
+      </section>
+
+      <section class="legal-section">
+        <h2>保留、撤销与删除</h2>
+        <p>
+          用户可以随时断开 Google 账号或卸载组件。断开会撤销 OAuth
+          授权并清理本地凭据与状态，但不会删除用户 Drive 或 Obsidian
+          中的内容。用户可以直接在自己的 Drive、Obsidian
+          和本地状态目录中删除数据。
+        </p>
+      </section>
+
+      <section class="legal-section">
+        <h2>变更与联系</h2>
+        <p>
+          本政策发生实质变更时，仓库会记录变更并更新本页生效日期。隐私、安全或数据删除问题请联系
+          <a href="mailto:johnqh90@gmail.com">johnqh90@gmail.com</a>。
+        </p>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="shell">
+        <span>BrainHub · Privacy</span>
+        <nav aria-label="页脚导航">
+          <a href="index.html">首页</a>
+          <a href="terms.html">服务条款</a>
+        </nav>
+      </div>
+    </footer>
+  </body>
+</html>

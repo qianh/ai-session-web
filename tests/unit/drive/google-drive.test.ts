@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import type { DriveHttp } from "../../../src/drive/rest-client";
 import { GoogleDriveGateway } from "../../../src/drive/google-drive";
@@ -30,12 +30,35 @@ class HandlerHttp implements DriveHttp {
 }
 
 describe("GoogleDriveGateway", () => {
+  it("reads the identity of the Google account selected by Chrome", async () => {
+    const json = vi.fn(async () => ({
+      user: {
+        emailAddress: " person@example.com ",
+        displayName: " Person ",
+        permissionId: " permission-1 ",
+      },
+    }));
+    const gateway = new GoogleDriveGateway({ json } as never);
+
+    await expect(gateway.getAccount()).resolves.toEqual({
+      email: "person@example.com",
+      displayName: "Person",
+      permissionId: "permission-1",
+    });
+    expect(json).toHaveBeenCalledWith(
+      expect.stringContaining(
+        "/about?fields=user%28displayName%2CemailAddress%2CpermissionId%29",
+      ),
+    );
+  });
+
   it("lists or creates folders with escaped Drive queries", async () => {
     const http = new HandlerHttp((path, init) => {
       if ((init.method ?? "GET") === "GET") return { files: [] };
       expect(JSON.parse(String(init.body))).toMatchObject({
         name: "brain-'hub",
         mimeType: "application/vnd.google-apps.folder",
+        parents: ["root"],
       });
       return {
         id: "root",
@@ -54,6 +77,7 @@ describe("GoogleDriveGateway", () => {
       `https://drive.test${http.calls[0]?.path ?? ""}`,
     ).searchParams.get("q");
     expect(query).toContain("name = 'brain-\\'hub'");
+    expect(query).toContain("'root' in parents");
   });
 
   it("creates missing path folders and uploads multipart bytes", async () => {

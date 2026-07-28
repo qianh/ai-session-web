@@ -4,6 +4,62 @@ BrainHub Capture 定义用户从网页中归档和精选个人知识的共同语
 
 ## Language
 
+**BrainHub**:
+以用户自己的个人 Drive 为数据空间的个人 AI 知识产品。BrainHub 由可独立使用的 **BrainHub Capture** 和 **BrainHub MCP** 等组件组成。
+_Avoid_: AI Session、Brain Capture
+
+**BrainHub Capture**:
+BrainHub 的浏览器采集组件，只负责把用户选择的网页内容与网页 AI 会话写入其 **个人 Drive**。它不搜索、读取或处理写入后的内容。
+_Avoid_: Brain Capture、ai-session-web、网页 MCP
+
+**个人 Drive**:
+用户在授权时所选择 Google 账号对应的个人数据空间。写入其中的 BrainHub 数据归该用户所有，应用发行方不是数据所有者。
+_Avoid_: BrainHub 云盘、发行方云盘、共享后端
+
+**BrainHub 根目录**:
+每个 Google 账号的 My Drive 根目录下唯一的 `brain-hub` 文件夹。BrainHub Capture 与 BrainHub MCP 复用该目录保存采集和上传的内容，用户不能为单个组件改用其他路径。
+_Avoid_: 自定义目录、组件专属根目录、多个 brain-hub
+
+**根目录冲突**:
+My Drive 根目录下同时存在多个 `brain-hub` 时的阻塞状态。用户必须明确选择其中一个作为 **BrainHub 根目录**；系统不自动合并、删除或猜测使用哪个目录。
+_Avoid_: 自动选最新、自动合并、清理重复目录
+
+**零配置授权**:
+用户只需选择自己的 Google 账号并同意所需权限即可开始使用的授权体验。普通用户不创建 Google Cloud 项目，也不提供 OAuth 客户端配置。
+_Avoid_: 自带 OAuth、开发者配置、手工凭据安装
+
+**官方发行物**:
+由 BrainHub 维护者发布到 Chrome Web Store 的 BrainHub Capture，使用经维护和验证的官方 OAuth 应用身份，为普通用户提供 **零配置授权**。
+_Avoid_: 源码构建、第三方修改版、用户自建 OAuth
+
+**Capture 升级**:
+由 Chrome Web Store 自动分发的官方版本更新。BrainHub Capture 不使用自建更新服务，也不从远程加载可执行代码。
+_Avoid_: 自更新器、站外 CRX、远程代码
+
+**Drive 内容稳定性**:
+BrainHub Capture 已写入个人 Drive 的会话与精选原文是用户内容，不属于组件升级状态。Capture 升级不批量迁移、改写、移动或删除历史内容。
+_Avoid_: 内容迁移、升级时重写、远端格式升级
+
+**源码构建**:
+用户自行从源码或 fork 构建的 BrainHub Capture。源码构建必须使用构建者自己的 Google Cloud OAuth 应用身份，不能默认作为 **官方发行物** 运行。
+_Avoid_: 官方商店版本、复用官方 OAuth 身份
+
+**Capture 账号**:
+当前 Chrome Profile 的主 Google 账号，也是 **BrainHub Capture** 写入 **个人 Drive** 时使用的账号。Capture 账号不是网页中临时切换的 Google 账号。
+_Avoid_: Gmail 当前账号、网页账号、MCP 账号
+
+**断开 Capture**:
+用户主动撤销 BrainHub Capture 的 Google 授权并清除扩展本地状态的操作。断开 Capture 不删除 **BrainHub 根目录** 或其中的任何内容，也不替代 Chrome 的扩展卸载操作。
+_Avoid_: 删除 Drive 数据、自动卸载扩展、只隐藏账号
+
+**站点首次回填**:
+用户首次启用一个受支持 AI 站点时，把该站点全部可见历史会话写入 **个人 Drive** 的一次性过程。每个站点独立确认和维护进度，重新启用不会再次全量回填。
+_Avoid_: 全站静默采集、每次启用重跑、跨站回填
+
+**受支持站点**:
+BrainHub Capture 第一版经过适配和测试的 ChatGPT、Claude、Gemini 与 Grok。只有受支持站点提供自动会话采集；其他普通网页仅能由用户主动保存选中文本。
+_Avoid_: 通用自动抓取、未经测试的网站兼容、所有 AI 网站
+
 **精华内容**:
 用户在任意普通网页上主动选中，并明确上报到个人知识空间的独立纯文本内容单元。精华内容只关注用户选择的文本，不记录页面标题或来源地址；它可以具有分享价值，但上报行为不创建分享链接或改变他人的访问权限。
 _Avoid_: 会话、书签、自动归档内容
@@ -45,3 +101,47 @@ _Avoid_: 摘要、改写文本、未脱敏凭证
 > 开发：原文里包含访问令牌时也必须逐字保留吗？
 >
 > 领域专家：不需要，凭证先安全脱敏；除此之外不要摘要或改写用户选文。
+>
+> 开发：用户要先创建 Google Cloud 项目，才能连接自己的 Drive 吗？
+>
+> 领域专家：不需要。普通用户只选择自己的 Google 账号并同意授权；数据仍写入该用户的个人 Drive。
+
+> 开发：从 fork 自行构建时也能直接使用 BrainHub 官方 OAuth 身份吗？
+>
+> 领域专家：不能。零配置授权属于官方发行物；源码构建者必须配置自己的应用身份。
+
+> 开发：Capture 要自己从项目服务器下载更新吗？
+>
+> 领域专家：不要。官方版本只通过 Chrome Web Store 更新。
+
+> 开发：Capture 升级时要顺便迁移 Drive 中的历史内容吗？
+>
+> 领域专家：不要。组件升级与用户内容无关，历史内容保持原样。
+>
+> 开发：BrainHub Capture 和 BrainHub MCP 是两个产品吗？
+>
+> 领域专家：它们是 BrainHub 的两个独立组件，可以分别使用，也可以通过用户的个人 Drive 协作。
+
+> 开发：Capture 可以把内容写到用户指定的其他 Drive 文件夹吗？
+>
+> 领域专家：不可以。它始终复用该账号唯一的 BrainHub 根目录。
+
+> 开发：发现两个同名根目录时，可以选最新的继续写吗？
+>
+> 领域专家：不可以。进入根目录冲突，等用户明确选择；其他目录保持不变。
+>
+> 开发：用户在 Gmail 网页切换账号后，Capture 账号也会跟着变吗？
+>
+> 领域专家：不会。Capture 账号属于当前 Chrome Profile，扩展界面必须显示实际连接的邮箱。
+
+> 开发：用户断开或卸载 Capture 时，要清空它已经保存的网页内容吗？
+>
+> 领域专家：不要。只撤销访问并清理本地状态，Drive 中的用户内容始终保留。
+>
+> 开发：用户第一次启用 ChatGPT 时，只同步之后的新会话吗？
+>
+> 领域专家：默认执行该站点的首次回填；其他站点只有在用户分别启用后才会回填。
+
+> 开发：任意 AI 网站都应该自动识别并采集会话吗？
+>
+> 领域专家：不要。第一版自动采集只支持四个受支持站点，其他网页只能手动保存选中文本。

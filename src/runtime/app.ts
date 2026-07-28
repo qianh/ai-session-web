@@ -34,6 +34,7 @@ interface RuntimeChromeApi {
       interactive: boolean;
     }): Promise<{ token?: string }>;
     removeCachedAuthToken(details: { token: string }): Promise<void>;
+    clearAllCachedAuthTokens(): Promise<void>;
   };
   runtime: {
     getManifest(): { oauth2?: { client_id?: string } };
@@ -92,7 +93,7 @@ export class BrainCaptureRuntime {
       case "GET_DASHBOARD":
         return this.dashboard();
       case "CONNECT_DRIVE":
-        return this.connectDrive();
+        return this.connectDrive(request.rootFolderId);
       case "DISCONNECT_DRIVE":
         return this.disconnectDrive();
       case "SET_SITE_ENABLED":
@@ -132,7 +133,7 @@ export class BrainCaptureRuntime {
     };
   }
 
-  async connectDrive(): Promise<string> {
+  async connectDrive(rootFolderId?: string): Promise<string> {
     const oauthClientId =
       this.#chrome.runtime.getManifest().oauth2?.client_id ?? "";
     const service = new DriveConnectionService({
@@ -141,17 +142,21 @@ export class BrainCaptureRuntime {
       drive: this.#gateway,
       store: this.#store,
     });
-    const root = await service.connect();
+    const root = await service.connect(rootFolderId);
     await this.updateBadge();
     return root;
   }
 
   async disconnectDrive(): Promise<void> {
-    await this.#store.update((state) => ({
-      ...state,
-      drive: { status: "disconnected" },
-    }));
+    let revokeError: unknown;
+    try {
+      await this.#tokenProvider.disconnect();
+    } catch (error) {
+      revokeError = error;
+    }
+    await this.#store.reset();
     await this.updateBadge();
+    if (revokeError) throw new RuntimeError("GOOGLE_REVOKE_FAILED");
   }
 
   async setSiteEnabled(site: SiteId, enabled: boolean): Promise<void> {

@@ -26,4 +26,22 @@ describe("ensureBrainHubRoot", () => {
     ).resolves.toBe("root-new");
     expect(createFolder).toHaveBeenCalledWith("brain-hub");
   });
+
+  it("requires an explicit choice when duplicate roots exist", async () => {
+    const roots = [
+      { id: "root-b", name: "brain-hub", mimeType: "folder" },
+      { id: "root-a", name: "brain-hub", mimeType: "folder" },
+    ];
+    const drive = {
+      listFolders: vi.fn(async () => roots),
+      createFolder: vi.fn(),
+    };
+
+    await expect(ensureBrainHubRoot(drive)).rejects.toMatchObject({
+      code: "DRIVE_ROOT_CONFLICT",
+      candidates: [roots[1], roots[0]],
+    });
+    await expect(ensureBrainHubRoot(drive, "root-b")).resolves.toBe("root-b");
+    expect(drive.createFolder).not.toHaveBeenCalled();
+  });
 });
