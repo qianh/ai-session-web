@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.6
+
+- Bind the official Chrome Web Store Item ID and public key.
+
 ## 0.1.5
 
 - Rename the extension to BrainHub Capture.
