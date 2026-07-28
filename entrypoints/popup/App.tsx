@@ -35,7 +35,7 @@ const SITE_META: Record<SiteId, { name: string; domain: string }> = {
   grok: { name: "Grok", domain: "grok.com" },
 };
 
-const EXTENSION_ID = "gljnhnhnkdjofigpbfdhiacbelljijmn";
+const EXTENSION_ID = "cfgbdidjffdccfjphfbeleplkhhdglgd";
 const MB = 1024 * 1024;
 
 export function PopupApp({ client }: { client?: PopupClient }) {

@@ -6,7 +6,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 const developmentOauthClientId =
   "brain-capture-development.apps.googleusercontent.com";
-const defaultExpectedExtensionId = "gljnhnhnkdjofigpbfdhiacbelljijmn";
+const defaultExpectedExtensionId = "cfgbdidjffdccfjphfbeleplkhhdglgd";
 const expectedPermissions = [
   "alarms",
   "contextMenus",
