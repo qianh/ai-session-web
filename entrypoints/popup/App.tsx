@@ -466,6 +466,8 @@ function errorLabel(code: string): string {
     SITE_PERMISSION_DENIED: "站点访问权限未授予",
     SITE_PERMISSION_REQUIRED: "需要站点访问权限",
     SITE_TAB_REQUIRED: "请先打开并登录对应站点",
+    CHATGPT_SESSION_REQUIRED:
+      "ChatGPT 会话凭据不可用，请刷新 ChatGPT 页面并重新打开一个会话",
     SITE_HTTP_429: "站点限流，稍后自动重试",
     DRIVE_RATE_LIMITED: "Google Drive 限流，稍后自动重试",
     DRIVE_AUTH_REQUIRED: "Google Drive 授权已失效，请重新连接",
@@ -499,6 +501,8 @@ function siteSubtitle(
   if (status.phase === "error") {
     const labels: Record<string, string> = {
       SITE_HTTP_429: "站点限流，稍后自动重试",
+      CHATGPT_SESSION_REQUIRED:
+        "ChatGPT 会话凭据不可用，请刷新页面并重新打开一个会话",
       DRIVE_RATE_LIMITED: "Google Drive 限流，稍后自动重试",
       DRIVE_AUTH_REQUIRED: "Google Drive 授权已失效，请重新连接",
       DRIVE_PERMISSION_DENIED: "Google Drive 拒绝访问，请重新授权 Drive 权限",

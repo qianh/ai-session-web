@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.7
+
+- Improve ChatGPT web-session authentication compatibility.
+
 ## 0.1.6
 
 - Bind the official Chrome Web Store Item ID and public key.

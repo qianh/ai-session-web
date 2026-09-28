@@ -31,6 +31,9 @@ describe("main-world request bridge", () => {
     );
 
     expect(result).toEqual({ ok: true, status: 200, data: { items: [] } });
+    expect(String(fetch.mock.calls[0]?.[0])).toContain(
+      "/api/auth/session?unstable_client=true",
+    );
     expect(fetch.mock.calls[1]?.[1]?.headers).toMatchObject({
       authorization: "Bearer secret-chat-token",
     });

@@ -207,12 +207,14 @@ export async function executePageRequest(
       if (!url || !url.pathname.startsWith("/backend-api/conversation")) {
         return failure(0, "BRIDGE_PATH_DENIED");
       }
-      const sessionResponse = await runtime.fetch(
-        `${runtime.origin}/api/auth/session`,
-        {
-          credentials: "include",
-        },
-      );
+      const sessionUrl = new URL("/api/auth/session", runtime.origin);
+      // ChatGPT's web client uses this flag when minting the short-lived
+      // backend bearer token. Without it, the endpoint can return a valid
+      // HTTP response that contains no accessToken even for a logged-in page.
+      sessionUrl.searchParams.set("unstable_client", "true");
+      const sessionResponse = await runtime.fetch(sessionUrl, {
+        credentials: "include",
+      });
       if (!sessionResponse.ok) {
         return failure(sessionResponse.status, "CHATGPT_SESSION_REQUIRED");
       }
